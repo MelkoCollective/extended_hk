@@ -130,43 +130,74 @@ void print_matrix(int **matrix, int m, int n) {
   }
 }
 
-/* A generalized version of the HK algorithm for more complex networks. */
-//assumption: every node has same number of neighbours (easy to further
-// generalize).
-// TODO: Add a C matrix flavour where you have the number of neighbours
-// TODO: add a different flavour where we can assume no-look-ahead.
-// TODO: is the redeclaration of node_nbs inefficient or does compiler handle this?
-// TODO: benefit of the type initializer way in loop, or declare then assign?
-// In this case, we would be able to assume labelling, and would not
-// need the node_labels entity!
-int* extended_hoshen_kopelman(const boost::multi_array<int, 2>& nbs,
-    int* occupancy, int N) {
-  //typedefs
-  typedef boost::multi_array<int, 2> array_t;
+/* A generalized version of the HK algorithm for arbitrary networks of nodes.
+ *
+ * INPUT:
+ * -nbs: 2d matrix. ith row is the neighbours of node i.
+ * -occupancy: vector with the occupation number (0 or 1) of the nodes.
+ * OUTPUT:
+ * -node_labels: the labels of the nodes.
+ */
+/* TODO: conventionalize the above docstring.
+ * TODO: Add a C matrix flavour where you have the number of neighbours
+ * TODO: add a different flavour where we can assume no-look-ahead. In this
+ * case, we would be able to assume labelling, and would not need the
+ * node_labels entity!
+ * TODO: is the redeclaration of node_nbs inefficient or does compiler handle this?
+ * TODO: benefit of the type initializer way in loop, or declare then assign?
+ * TODO: add check to see if already allocated space for size.
+ * TODO: polish the min element part with some iteratory stuff to derive new
+ * iterators over the subarrays.
+ * TODO: currently using an extreme memory bound for label initialization..can
+ *  wedo better?
+ * TODO: perhaps switch the N+1 placeholder for 0, and make more computation
+ * occur when finding min element...readability vs significant optimization.
+ */
+void extended_hoshen_kopelman(boost::multi_array<int, 1>& node_labels,
+                              const boost::multi_array<int, 2>& nbs,
+                              int* occupancy) {
+  // Typedefs
+  typedef boost::multi_array<int, 2> array_2t;
+  typedef boost::multi_array<int, 1> array_1t;
   typedef boost::multi_array_types::index_range range_t;
   typedef boost::multi_array<int, 1>::const_iterator const_iter;
 
-  // Create the output array.
-  int* node_labels = new int[N];
-  node_labels = {0}; //c++11
+  const int N = nbs.shape()[0]; //number of nodes.
 
-  // Iterate over nodes and perform clustering.
+  // Initialize node_labels
+  array_1t::extent_gen extents;
+  node_labels.resize(extents[N]);
+  fill(node_labels.begin(),node_labels.end(),N+1); // N+1 is unlabelled node
+
+  // Initialize memory for binary forest of labels.
+  uf_initialize(N);
+
+  // Iterate over nodes and perform clustering. TODO: replace with iteration
   for (int i = 0; i < N; ++i) {
     if (occupancy[i]) {
       // Get neighbours of node i ('i'th row of neighbours)
-      array_t::index_gen indices;
-      array_t::const_array_view<1>::type node_nbs = nbs[indices[i][range_t()]];
+      array_2t::index_gen indices;
+      array_2t::const_array_view<1>::type node_nbs = nbs[indices[i][range_t()]];
 
-      if (all_of(node_nbs.begin(), node_nbs.end(), [](int i) {return i==0;}))
+      // Check if there exist any neighbouring labels.
+      if (all_of(node_nbs.begin(), node_nbs.end(),
+                 [&](int j) {return node_labels[j]==N+1;}))
         node_labels[i] = uf_make_set();
       else {
-        // Find smallest label of the neighbours
-        int min_label = *min_element(node_nbs.begin(), node_nbs.end());
+        // Get subset of labels using node_nbs as indices.
+        array_1t node_nbs_labels(extents[node_nbs.shape()[0]]);
+        for (unsigned int j = 0; j < node_nbs_labels.shape()[0]; ++j){
+          node_nbs_labels[j] = node_labels[node_nbs[j]];
+        }
 
-        // Perform min labelling
+        // Find smallest label of the neighbours.
+        int min_label = *min_element(node_nbs_labels.begin(),
+                                      node_nbs_labels.end());
+
+        // Apply the minimum label to all labelled neighbours + current node.
         node_labels[i] = min_label;
         for (const_iter nb = node_nbs.begin(); nb != node_nbs.end(); ++nb)
-          if (node_labels[*nb])
+          if (node_labels[*nb] != N+1)
             uf_union(min_label, node_labels[*nb]);
       } //else
     } //occupancy
@@ -183,13 +214,13 @@ int* extended_hoshen_kopelman(const boost::multi_array<int, 2>& nbs,
       }
       node_labels[i] = new_labels[x];
     }
-  int total_clusters = new_labels[0];
+    else {
+      node_labels[i] = 0; // Replace placeholders with 0.
+    }
 
   // Cleanup
   delete[] new_labels;
   uf_done();
-
-  return node_labels;
 }
 
 /* Label the clusters in "matrix". Return the total number of clusters found. */
@@ -245,7 +276,7 @@ int hoshen_kopelman(int **matrix, int m, int n) {
 
   int total_clusters = new_labels[0];
 
-  free(new_labels);
+  delete [] new_labels;
   uf_done();
 
   return total_clusters;
@@ -269,91 +300,4 @@ void check_labelling(int **matrix, int m, int n) {
         assert(E == 0 || matrix[i][j] == E);
         assert(W == 0 || matrix[i][j] == W);
       }
-}
-
-/* The sample program reads in a matrix from standard input, runs the HK algorithm on
- it, and prints out the results.  The form of the input is two integers giving the
- dimensions of the matrix, followed by the matrix elements (with data separated by
- whitespace).
-
- a sample input file is the following:
-
- 8 8
- 1 1 1 1 1 1 1 1
- 0 0 0 0 0 0 0 1
- 1 0 0 0 0 1 0 1
- 1 0 0 1 0 1 0 1
- 1 0 0 1 0 1 0 1
- 1 0 0 1 1 1 0 1
- 1 1 1 1 0 0 0 1
- 0 0 0 1 1 1 0 1
-
- this sample input gives the following output:
-
- --input--
- 1   1   1   1   1   1   1   1
- 0   0   0   0   0   0   0   1
- 1   0   0   0   0   1   0   1
- 1   0   0   1   0   1   0   1
- 1   0   0   1   0   1   0   1
- 1   0   0   1   1   1   0   1
- 1   1   1   1   0   0   0   1
- 0   0   0   1   1   1   0   1
- --output--
- 1   1   1   1   1   1   1   1
- 0   0   0   0   0   0   0   1
- 2   0   0   0   0   2   0   1
- 2   0   0   2   0   2   0   1
- 2   0   0   2   0   2   0   1
- 2   0   0   2   2   2   0   1
- 2   2   2   2   0   0   0   1
- 0   0   0   2   2   2   0   1
- HK reports 2 clusters found
-
- */
-
-int main(int argc, char **argv) {
-
-  int m, n;
-  int **matrix;
-
-  /* Read in the matrix from standard input
-
-   The whitespace-deliminated matrix input is preceeded
-   by the number of rows and number of columns */
-
-  while (2 == scanf("%d %d", &m, &n)) {  // m = rows, n = columns
-
-    matrix = (int **) calloc(m, sizeof(int*));
-
-    for (int i = 0; i < m; i++) {
-      matrix[i] = (int *) calloc(n, sizeof(int));
-      for (int j = 0; j < n; j++)
-        scanf("%d", &(matrix[i][j]));
-    }
-
-    printf(" --input-- \n");
-
-    print_matrix(matrix, m, n);
-
-    printf(" --output-- \n");
-
-    /* Process the matrix */
-
-    int clusters = hoshen_kopelman(matrix, m, n);
-
-    /* Output the result */
-
-    print_matrix(matrix, m, n);
-
-    check_labelling(matrix, m, n);
-
-    printf("HK reports %d clusters found\n", clusters);
-
-    for (int i = 0; i < m; i++)
-      free(matrix[i]);
-    free(matrix);
-  }
-
-  return 0;
 }
