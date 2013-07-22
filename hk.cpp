@@ -30,14 +30,11 @@
  */
 
 //#include "hk.h"
+
 #include <boost/multi_array.hpp>
-#include <cassert>
-#include <cstdio>
-#include <cstdlib>
 #include <algorithm>
-#include <array>
+#include <cassert>
 #include <new>
-#include <iostream>
 
 using namespace std;
 
@@ -48,7 +45,7 @@ using namespace std;
  equivalence class.  The labels start at one; labels[0] is a special value indicating
  the highest label already used. */
 
-int *labels; //TODO: consider removing from the top-of-file scope.
+int *labels;
 int n_labels = 0; /* length of the labels array */
 
 /*  uf_find returns the canonical label for the equivalence class containing x */
@@ -72,20 +69,6 @@ int uf_union(int x, int y) {
   return labels[uf_find(x)] = uf_find(y);
 }
 
-/*  uf_union_multi is a generalized version of uf_union for more than 2 nodes. */
-
-int uf_union_multi(int* nodes, int N) {
-  //TODO: pairwise for now. perhaps there's a quicker way? Think about this.
-  //TODO: soln: just pair all up to 1 guy (equivalence is transitive duuuhh...)
-  int out;
-  //double-for loop across upper-triangle of cartesian product matrix
-  for (int i = 0; i < N; i++)
-    for (int j = i; j < N; j++)
-      out = uf_union(nodes[i], nodes[j]); //TODO: redundant assgt here. prob not costly.
-
-  return out;
-}
-
 /*  uf_make_set creates a new equivalence class and returns its label */
 
 int uf_make_set(void) {
@@ -99,7 +82,6 @@ int uf_make_set(void) {
 
 void uf_initialize(int max_labels) {
   n_labels = max_labels;
-//  labels = calloc(sizeof(int), n_labels);
   labels = new int[n_labels];
   labels[0] = 0;
 }
@@ -108,7 +90,6 @@ void uf_initialize(int max_labels) {
 
 void uf_done(void) {
   n_labels = 0;
-//  free(labels);
   delete[] labels;
   labels = 0;
 }
@@ -117,18 +98,6 @@ void uf_done(void) {
 
 #define max(a,b) (a>b?a:b)
 #define min(a,b) (a>b?b:a)
-
-/* print_matrix prints out a matrix that is set up in the "pointer to pointers" scheme
- (aka, an array of arrays); this is incompatible with C's usual representation of 2D
- arrays, but allows for 2D arrays with dimensions determined at run-time */
-
-void print_matrix(int **matrix, int m, int n) {
-  for (int i = 0; i < m; i++) {
-    for (int j = 0; j < n; j++)
-      printf("%3d ", matrix[i][j]);
-    printf("\n");
-  }
-}
 
 /* A generalized version of the HK algorithm for arbitrary networks of nodes.
  *
@@ -186,7 +155,7 @@ void extended_hoshen_kopelman(boost::multi_array<int, 1>& node_labels,
       else {
         // Get subset of labels using node_nbs as indices.
         array_1t node_nbs_labels(extents[node_nbs.shape()[0]]);
-        for (unsigned int j = 0; j < node_nbs_labels.shape()[0]; ++j){
+        for (unsigned int j = 0; j < node_nbs_labels.shape()[0]; ++j) {
           node_nbs_labels[j] = node_labels[node_nbs[j]];
         }
 
@@ -203,7 +172,10 @@ void extended_hoshen_kopelman(boost::multi_array<int, 1>& node_labels,
     } //occupancy
   } //node
 
-  // Recursive relabelling
+  /* This is a little bit sneaky.. we create a mapping from the canonical labels
+   determined by union/find into a new set of canonical labels, which are
+   guaranteed to be sequential. */
+
   int *new_labels = new int[n_labels]; // allocate array, initialized to zero
   for (int i = 0; i < N; i++)
     if (occupancy[i]) {
@@ -280,24 +252,4 @@ int hoshen_kopelman(int **matrix, int m, int n) {
   uf_done();
 
   return total_clusters;
-}
-
-/* This procedure checks to see that any occupied neighbors of an occupied site
- have the same label. */
-
-void check_labelling(int **matrix, int m, int n) {
-  int N, S, E, W;
-  for (int i = 0; i < m; i++)
-    for (int j = 0; j < n; j++)
-      if (matrix[i][j]) {
-        N = (i == 0 ? 0 : matrix[i - 1][j]);
-        S = (i == m - 1 ? 0 : matrix[i + 1][j]);
-        E = (j == n - 1 ? 0 : matrix[i][j + 1]);
-        W = (j == 0 ? 0 : matrix[i][j - 1]);
-
-        assert(N == 0 || matrix[i][j] == N);
-        assert(S == 0 || matrix[i][j] == S);
-        assert(E == 0 || matrix[i][j] == E);
-        assert(W == 0 || matrix[i][j] == W);
-      }
 }
