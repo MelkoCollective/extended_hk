@@ -1,7 +1,8 @@
 //TODO: Replace with unit-testing structure later.
 
 #include "hk.h"
-#include <random>
+#include "MersenneTwister.h"
+#include <cstdio>
 
 using namespace std;
 
@@ -24,11 +25,10 @@ int main(int argc, char *argv[]) {
   }
 
   // Build the occupancies of the sites.
+  MTRand mrand = MTRand();
   int* occupancy = new int[N];
-  default_random_engine generator;
-  uniform_real_distribution<double> distribution(0.0,1.0);
   for (int i=0; i<N; ++i) {
-    double number = distribution(generator);
+    double number = mrand();
     if (number < p)
       occupancy[i] = 1;
     else
