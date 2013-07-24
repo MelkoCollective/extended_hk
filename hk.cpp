@@ -32,6 +32,7 @@
 //#include "hk.h"
 
 #include <boost/multi_array.hpp>
+#include <boost/phoenix.hpp>
 #include <algorithm>
 #include <cassert>
 #include <new>
@@ -119,8 +120,9 @@ void uf_done(void) {
  * iterators over the subarrays.
  * TODO: currently using an extreme memory bound for label initialization..can
  *  wedo better?
- * TODO: perhaps switch the N+1 placeholder for 0, and make more computation
- * occur when finding min element...readability vs significant optimization.
+ * TODO: Without C++11 we lost the syntactically sleek lambda function...is
+ * there still a sleek way to do the all_of?  This would be useful for a
+ * couple locations in code (ex: finding is_alone)
  */
 void extended_hoshen_kopelman(boost::multi_array<int, 1>& node_labels,
                               const boost::multi_array<int, 2>& nbs,
@@ -129,14 +131,16 @@ void extended_hoshen_kopelman(boost::multi_array<int, 1>& node_labels,
   typedef boost::multi_array<int, 2> array_2t;
   typedef boost::multi_array<int, 1> array_1t;
   typedef boost::multi_array_types::index_range range_t;
-  typedef boost::multi_array<int, 1>::const_iterator const_iter;
+  typedef boost::multi_array<int, 1>::const_iterator c_iter;
 
   const int N = nbs.shape()[0]; //number of nodes.
 
   // Initialize node_labels
   array_1t::extent_gen extents;
   node_labels.resize(extents[N]);
-  fill(node_labels.begin(),node_labels.end(),N+1); // N+1 is unlabelled node
+  // labels live in [1,N]. Use N+1 instead of 0 to reduce some computation.
+  int unlabelled = N+1;
+  fill(node_labels.begin(),node_labels.end(),N+1);
 
   // Initialize memory for binary forest of labels.
   uf_initialize(N);
@@ -144,31 +148,40 @@ void extended_hoshen_kopelman(boost::multi_array<int, 1>& node_labels,
   // Iterate over nodes and perform clustering. TODO: replace with iteration
   for (int i = 0; i < N; ++i) {
     if (occupancy[i]) {
+
       // Get neighbours of node i ('i'th row of neighbours)
       array_2t::index_gen indices;
-      array_2t::const_array_view<1>::type node_nbs = nbs[indices[i][range_t()]];
+      array_2t::const_array_view<1>::type node_nbs =
+                                              nbs[ indices[i][range_t()] ];
 
-      // Check if there exist any neighbouring labels.
-      if (all_of(node_nbs.begin(), node_nbs.end(),
-                 [&](int j) {return node_labels[j]==N+1;}))
+      // Get subset of labels using node_nbs as indices.
+      array_1t node_nbs_labels(extents[node_nbs.shape()[0]]);
+      for (unsigned int j = 0; j < node_nbs_labels.shape()[0]; ++j) {
+        node_nbs_labels[j] = node_labels[node_nbs[j]];
+      }
+      c_iter begin = node_nbs_labels.begin();
+      c_iter end = node_nbs_labels.end();
+
+      // Check if node has no labeled neighbours.
+      bool is_alone = 1;
+      for (c_iter it = begin; is_alone && (it != end); ++it){
+        is_alone *= (*it == unlabelled);
+      }
+
+      // Labelling + merging
+      if(is_alone)
         node_labels[i] = uf_make_set();
       else {
-        // Get subset of labels using node_nbs as indices.
-        array_1t node_nbs_labels(extents[node_nbs.shape()[0]]);
-        for (unsigned int j = 0; j < node_nbs_labels.shape()[0]; ++j) {
-          node_nbs_labels[j] = node_labels[node_nbs[j]];
-        }
-
         // Find smallest label of the neighbours.
-        int min_label = *min_element(node_nbs_labels.begin(),
-                                      node_nbs_labels.end());
+        int min_label = *min_element(begin, end);
 
         // Apply the minimum label to all labelled neighbours + current node.
         node_labels[i] = min_label;
-        for (const_iter nb = node_nbs.begin(); nb != node_nbs.end(); ++nb)
-          if (node_labels[*nb] != N+1)
+        for (c_iter nb = node_nbs.begin(); nb != node_nbs.end(); ++nb)
+          if (node_labels[*nb] != unlabelled)
             uf_union(min_label, node_labels[*nb]);
-      } //else
+      }
+
     } //occupancy
   } //node
 
