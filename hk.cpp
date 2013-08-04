@@ -189,7 +189,94 @@ void extended_hoshen_kopelman(boost::multi_array<int, 1>& node_labels,
    determined by union/find into a new set of canonical labels, which are
    guaranteed to be sequential. */
 
-  int *new_labels = new int[n_labels]; // allocate array, initialized to zero
+  int *new_labels = new int[n_labels](); // allocate array, initialized to zero
+  for (int i = 0; i < N; i++)
+    if (occupancy[i]) {
+      int x = uf_find(node_labels[i]);
+      if (new_labels[x] == 0) {
+        new_labels[0]++;
+        new_labels[x] = new_labels[0];
+      }
+      node_labels[i] = new_labels[x];
+    }
+    else {
+      node_labels[i] = 0; // Replace placeholders with 0.
+    }
+
+  // Cleanup
+  delete[] new_labels;
+  uf_done();
+}
+
+/* A flavour of extended_hoshen_kopelman that uses standard arrays instead of
+ * boost. Note that it requires a constant number of neighbours per site.
+ *
+ * INPUT:
+ * -nbs: 2d matrix (N x m). ith row is the neighbours of node i.
+ * -occupancy: vector with the occupation number (0 or 1) of the nodes.
+ * -N: the number of nodes.
+ * -m: the number of neighbours per node
+ * OUTPUT:
+ * -node_labels: the labels of the nodes. Assumed that space already allocated
+ */
+
+//void extended_hk_no_boost(int* node_labels, int const* const* nbs,
+//                          const int* occupancy, const int N, const int m) {
+void extended_hk_no_boost(int* node_labels, int const* const* nbs,
+                          const int* occupancy, int N, int m) {
+
+  // Initialize node_labels with N+1 since labels live in [1,N].
+  int unlabelled = N+1;
+  for (int i = 0; i < N; ++i)
+    node_labels[i] = unlabelled;
+
+  // Initialize memory for binary forest of labels.
+  uf_initialize(N);
+
+  int node_nbs_labels [m];
+
+  // Iterate over nodes and perform clustering.
+  for (int i = 0; i < N; ++i) {
+    if (occupancy[i]) {
+
+      // Get neighbours of node i ('i'th row of neighbours)
+      const int* node_nbs = nbs[i];
+
+      // Get subset of labels using node_nbs as indices (ie node_labels[node_nbs])
+      for (int j = 0; j < m; ++j) {
+        node_nbs_labels[j] = node_labels[node_nbs[j]];
+      }
+
+      // Check if node has no labeled neighbours.
+      bool is_alone = 1;
+      for (int j = 0; is_alone && (j < m); ++j){
+        is_alone *= (node_nbs_labels[j] == unlabelled);
+      }
+
+      // Labelling + merging
+      if(is_alone)
+        node_labels[i] = uf_make_set();
+      else {
+        // Find smallest label of the neighbours.
+        int min_label = *min_element(&node_nbs_labels[0], &node_nbs_labels[m]);
+
+        // Apply the minimum label to all labelled neighbours + current node.
+        node_labels[i] = min_label;
+        for (int j = 0; j < m; ++j)
+//          if (node_labels[node_nbs[j]] != unlabelled)
+//            uf_union(min_label, node_labels[node_nbs[j]]);
+          if (node_nbs_labels[j] != unlabelled)
+            uf_union(min_label,node_nbs_labels[j]);
+      }
+
+    } //occupancy
+  } //node
+
+  /* This is a little bit sneaky.. we create a mapping from the canonical labels
+   determined by union/find into a new set of canonical labels, which are
+   guaranteed to be sequential. */
+
+  int *new_labels = new int[n_labels](); // allocate array, initialized to zero
   for (int i = 0; i < N; i++)
     if (occupancy[i]) {
       int x = uf_find(node_labels[i]);
