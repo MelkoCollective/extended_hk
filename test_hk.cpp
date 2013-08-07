@@ -29,7 +29,8 @@ int main(int argc, char *argv[]) {
 
   // Build the occupancies of the sites.
   MTRand mrand = MTRand();
-  int* occupancy = new int[N];
+  //int* occupancy = new int[N];
+  array_1t occupancy(boost::extents[N]);
   for (int i=0; i<N; ++i) {
     double number = mrand();
     if (number < p)
@@ -61,7 +62,6 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  delete [] occupancy;
   return 0;
 }
 

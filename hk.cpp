@@ -126,7 +126,7 @@ void uf_done(void) {
  */
 void extended_hoshen_kopelman(boost::multi_array<int, 1>& node_labels,
                               const boost::multi_array<int, 2>& nbs,
-                              int* occupancy) {
+                              const boost::multi_array<int, 1>& occupancy) {
   // Typedefs
   typedef boost::multi_array<int, 2> array_2t;
   typedef boost::multi_array<int, 1> array_1t;
@@ -220,8 +220,6 @@ void extended_hoshen_kopelman(boost::multi_array<int, 1>& node_labels,
  * -node_labels: the labels of the nodes. Assumed that space already allocated
  */
 
-//void extended_hk_no_boost(int* node_labels, int const* const* nbs,
-//                          const int* occupancy, const int N, const int m) {
 void extended_hk_no_boost(int* node_labels, int const* const* nbs,
                           const int* occupancy, int N, int m) {
 
