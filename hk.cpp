@@ -189,7 +189,9 @@ void extended_hoshen_kopelman(boost::multi_array<int, 1>& node_labels,
    determined by union/find into a new set of canonical labels, which are
    guaranteed to be sequential. */
 
-  int *new_labels = new int[n_labels](); // allocate array, initialized to zero
+  int *new_labels = new int[n_labels]; // allocate array, initialized to zero
+  for (int i = 0; i < n_labels; i++) new_labels[i] = 0;
+
   for (int i = 0; i < N; i++)
     if (occupancy[i]) {
       int x = uf_find(node_labels[i]);
@@ -276,7 +278,9 @@ void extended_hk_no_boost(int* node_labels, int const* const* nbs,
    determined by union/find into a new set of canonical labels, which are
    guaranteed to be sequential. */
 
-  int *new_labels = new int[n_labels](); // allocate array, initialized to zero
+  int *new_labels = new int[n_labels]; // allocate array, initialized to zero
+  for (int i = 0; i < n_labels; i++) new_labels[i] = 0;
+
   for (int i = 0; i < N; i++)
     if (occupancy[i]) {
       int x = uf_find(node_labels[i]);
@@ -334,6 +338,7 @@ int hoshen_kopelman(int **matrix, int m, int n) {
    guaranteed to be sequential. */
 
   int *new_labels = new int[n_labels]; // allocate array, initialized to zero
+  for (int i = 0; i < n_labels; i++) new_labels[i] = 0;
 
   for (int i = 0; i < m; i++)
     for (int j = 0; j < n; j++)
