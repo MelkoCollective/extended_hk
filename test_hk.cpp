@@ -77,47 +77,33 @@ using namespace std;
  */
 
 int main(int argc, char *argv[]) {
-  int N = atoi(argv[1]);
-  bool verbose = !!atoi(argv[2]);
+  int N = 7;
+  bool verbose = !!atoi(argv[1]);
 
   // Typedefs
   typedef boost::multi_array<int, 1> array_1t;
   typedef boost::multi_array<int, 2> array_2t;
 
-  // Build a square lattice network with periodic lattice conditions.
-  boost::multi_array<int, 2> nbs(boost::extents[N][4]);
-  for (int k = 0; k < N; ++k) {
-    nbs[k][0] = (k-1)%N;
-    nbs[k][1] = (k+1)%N;
-  }
+  boost::multi_array<int, 2> nbs(boost::extents[N][2]);
 
-  // Some hardcoded stuff for the case that the reference provides (but with
-  // 0s appended on the sides).
-  /* Scramble to the ordering that screws things up.
-   * 0 1 7 4 5 3 6 2 8
-   * 0 1 1 1 1 1 1 1 0
-   */
-  if (N==9) {
-    nbs[0][0] = 8; nbs[0][1] = 1;
-    nbs[1][0] = 0; nbs[1][1] = 7;
-    nbs[2][0] = 6; nbs[2][1] = 8;
-    nbs[3][0] = 5; nbs[3][1] = 6;
-    nbs[4][0] = 7; nbs[4][1] = 5;
-    nbs[5][0] = 4; nbs[5][1] = 3;
-    nbs[6][0] = 3; nbs[6][1] = 2;
-    nbs[7][0] = 1; nbs[7][1] = 4;
-    nbs[8][0] = 2; nbs[8][1] = 0;
+  if (N == 7) {
+    nbs[0][0] = 6; nbs[0][1] = -1;
+    nbs[1][0] = 5; nbs[1][1] = -1;
+    nbs[2][0] = 4; nbs[2][1] = 5;
+    nbs[3][0] = 6; nbs[3][1] = 4;
+    nbs[4][0] = 3; nbs[4][1] = 2;
+    nbs[5][0] = 2; nbs[5][1] = 1;
+    nbs[6][0] = 0; nbs[6][1] = 3;
   }
 
   // Build the occupancies of the sites.
-  // Gives  0 1 1 1 1 . . . 1 1 1 1 0
+  // Gives  1 1 1 1 . . . 1 1 1 1
   array_1t occupancy(boost::extents[N]);
   for (int i=0; i<N; ++i) {
     occupancy[i] = 1;
   }
-  occupancy[0] = 0;
-  occupancy[N-1] = 0;
-//  occupancy[3] = 0;
+  occupancy[3] = 1;
+
 
   // Print the matrix to be input into HK.
   if (verbose) {
@@ -136,11 +122,22 @@ int main(int argc, char *argv[]) {
   boost::multi_array<int, 1> node_labels;
   extended_hoshen_kopelman(node_labels,nbs,occupancy);
 
+  // Permute occupancy appropriately.
+  array_1t geo_node_labels(boost::extents[N]);
+  geo_node_labels[0] = node_labels[0];
+  geo_node_labels[1] = node_labels[6];
+  geo_node_labels[2] = node_labels[3];
+  geo_node_labels[3] = node_labels[4];
+  geo_node_labels[4] = node_labels[2];
+  geo_node_labels[5] = node_labels[5];
+  geo_node_labels[6] = node_labels[1];
+
+
   // Print the output matrix.
   if (verbose) {
     cout << "---OUTPUT---" << endl << endl;
     for (int i = 0; i < N; i++){
-      printf("%3d ", node_labels[i]);
+      printf("%3d ", geo_node_labels[i]);
     }
   }
 
