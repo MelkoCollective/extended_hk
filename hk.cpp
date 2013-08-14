@@ -82,9 +82,6 @@ void uf_done(void) {
 
 /* End Union-Find implementation */
 
-#define max(a,b) (a>b?a:b)
-#define min(a,b) (a>b?b:a)
-
 /* A generalized version of the HK algorithm for arbitrary networks of nodes.
  *
  * INPUT:
@@ -93,18 +90,6 @@ void uf_done(void) {
  * -occupancy: 1D array with the occupation number (0 or 1) of the nodes.
  * OUTPUT:
  * -node_labels: an array of the labels of the nodes.
- */
-/*
- * TODO: add a different flavour where we can assume no-look-ahead. In this
- * case, we would be able to assume labelling, and would not need the
- * node_labels entity!
- * TODO: is the redeclaration of node_nbs inefficient or does compiler handle this?
- * TODO: benefit of the type initializer way in loop, or declare then assign?
- * TODO: polish the min element part with some iteratory stuff to derive new
- * iterators over the subarrays.
- * TODO: Without C++11 we lost the syntactically sleek lambda function...is
- * there still a sleek way to do the all_of?  This would be useful for a
- * couple locations in code (ex: finding is_alone)
  */
 void extended_hoshen_kopelman(boost::multi_array<int, 1>& node_labels,
                               const boost::multi_array<int, 2>& nbs,
@@ -115,27 +100,30 @@ void extended_hoshen_kopelman(boost::multi_array<int, 1>& node_labels,
   typedef boost::multi_array_types::index_range range_t;
   typedef boost::multi_array<int, 1>::const_iterator c_iter;
 
-  const int N = nbs.shape()[0]; //number of nodes.
-
-  // Initialize node_labels
+  // Tools for multi-arrays.
   array_1t::extent_gen extents;
+  array_2t::index_gen indices;
+
+  // Number of nodes.
+  const int N = nbs.shape()[0];
+  const int m = nbs.shape()[1];
+
+  // Initialize node_labels with N+1 since labels live in [1,N].
+  const int unlabelled = N+1;
   node_labels.resize(extents[N]);
-  // labels live in [1,N]. Use N+1 instead of 0 to reduce some computation.
-  int unlabelled = N+1;
   fill(node_labels.begin(),node_labels.end(),N+1);
 
   // Initialize memory for binary forest of labels.
   uf_initialize(N);
 
-  // Iterate over nodes and perform clustering. TODO: replace with iteration
+  // Iterate over nodes and perform clustering.
   for (int i = 0; i < N; ++i) {
     if (occupancy[i]) {
 
       // Get neighbours of node i ('i'th row of neighbours)
-      int n_nbs = nbs.shape()[1];
+      int n_nbs = m;
       while (nbs[i][n_nbs - 1] == -1) // Find last neighbour.
         n_nbs--;
-      array_2t::index_gen indices;
       array_2t::const_array_view<1>::type node_nbs =
                                           nbs[ indices[i][range_t(0,n_nbs)] ];
 
@@ -144,7 +132,6 @@ void extended_hoshen_kopelman(boost::multi_array<int, 1>& node_labels,
       for (unsigned int j = 0; j < n_nbs; ++j) {
         node_nbs_labels[j] = node_labels[node_nbs[j]];
       }
-
       c_iter begin = node_nbs_labels.begin();
       c_iter end = node_nbs_labels.end();
 
@@ -197,7 +184,8 @@ void extended_hoshen_kopelman(boost::multi_array<int, 1>& node_labels,
 }
 
 /* A flavour of extended_hoshen_kopelman that uses standard arrays instead of
- * boost. Note that it requires a constant number of neighbours per site.
+ * boost. As a result, it is more readable and probably more efficient.
+ * Note that it currently requires a constant number of neighbours per site.
  *
  * INPUT:
  * -nbs: 2d matrix (N x m). ith row is the neighbours of node i.
@@ -205,14 +193,16 @@ void extended_hoshen_kopelman(boost::multi_array<int, 1>& node_labels,
  * -N: the number of nodes.
  * -m: the number of neighbours per node
  * OUTPUT:
- * -node_labels: the labels of the nodes. Assumed that space already allocated
+ * -node_labels: the labels of the nodes. Assumed that space already allocated.
+ *
+ * Note: This can be altered to not require a constant number of neighbours
+ *       in the same way as the boost version.
  */
-
 void extended_hk_no_boost(int* node_labels, int const* const* nbs,
                           const int* occupancy, int N, int m) {
 
   // Initialize node_labels with N+1 since labels live in [1,N].
-  int unlabelled = N+1;
+  const int unlabelled = N+1;
   for (int i = 0; i < N; ++i)
     node_labels[i] = unlabelled;
 
