@@ -1,35 +1,20 @@
 /* Tobin Fricke's original code with an extended version of the HK algorithm
  added. The extension borrows some ideas from:
-
  http://gaia.pge.utexas.edu/papers/AFTWPPhysicaA.pdf
 
- This program has been updated to work in C++11 ("-std=c++0x" in a compatible
- compiler).
-
- ----------------------------------------------------------------------------
- Fricke's original file header:
- ----------------------------------------------------------------------------
-
- Tobin Fricke's implementation of the
- Hoshen-Kopelman algorithm for
- cluster labeling.
+ Requirements:
+ -Boost
+ -compiler ? - ?
 
  Copyright (c) September 9, 2000, by Tobin Fricke <tobin@pas.rochester.edu>
 
+ Extended 2013-08-14 Grant Watson
  Modified 2002-03-09 Tobin Fricke
  Modified substantially 2004-04-21 by Tobin Fricke
 
- This program is written in the 1999 standard of the C language (C99).  Older C
- compilers will refuse to compile it.   You can use a C++ compiler, a C99 compiler,
- or you can modify this code to comply with a previous version of the C standard.
- The GCC compiler supports C99 as of version 3.0.  Compile this program with:
-
- gcc-3.0 -Wall -std=c99 hk.c -o hk
-
+ Fricke's code available at:
  http://www.ocf.berkeley.edu/~fricke/projects/hoshenkopelman/hoshenkopelman.html
  */
-
-//#include "hk.h"
 
 #include <boost/multi_array.hpp>
 #include <boost/phoenix.hpp>
@@ -108,18 +93,14 @@ void uf_done(void) {
  * OUTPUT:
  * -node_labels: the labels of the nodes.
  */
-/* TODO: conventionalize the above docstring.
- * TODO: Add a C matrix flavour where you have the number of neighbours
+/*
  * TODO: add a different flavour where we can assume no-look-ahead. In this
  * case, we would be able to assume labelling, and would not need the
  * node_labels entity!
  * TODO: is the redeclaration of node_nbs inefficient or does compiler handle this?
  * TODO: benefit of the type initializer way in loop, or declare then assign?
- * TODO: add check to see if already allocated space for size.
  * TODO: polish the min element part with some iteratory stuff to derive new
  * iterators over the subarrays.
- * TODO: currently using an extreme memory bound for label initialization..can
- *  wedo better?
  * TODO: Without C++11 we lost the syntactically sleek lambda function...is
  * there still a sleek way to do the all_of?  This would be useful for a
  * couple locations in code (ex: finding is_alone)
