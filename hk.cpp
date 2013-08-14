@@ -88,10 +88,11 @@ void uf_done(void) {
 /* A generalized version of the HK algorithm for arbitrary networks of nodes.
  *
  * INPUT:
- * -nbs: 2d matrix. ith row is the neighbours of node i.
- * -occupancy: vector with the occupation number (0 or 1) of the nodes.
+ * -nbs: 2D array. ith row is the neighbours of node i. If a node has
+ *       less neighbours than # of cols, fill the rest of the row with -1.
+ * -occupancy: 1D array with the occupation number (0 or 1) of the nodes.
  * OUTPUT:
- * -node_labels: the labels of the nodes.
+ * -node_labels: an array of the labels of the nodes.
  */
 /*
  * TODO: add a different flavour where we can assume no-look-ahead. In this
@@ -131,19 +132,23 @@ void extended_hoshen_kopelman(boost::multi_array<int, 1>& node_labels,
     if (occupancy[i]) {
 
       // Get neighbours of node i ('i'th row of neighbours)
+      int n_nbs = nbs.shape()[1];
+      while (nbs[i][n_nbs - 1] == -1) // Find last neighbour.
+        n_nbs--;
       array_2t::index_gen indices;
       array_2t::const_array_view<1>::type node_nbs =
-                                              nbs[ indices[i][range_t()] ];
+                                          nbs[ indices[i][range_t(0,n_nbs)] ];
 
       // Get subset of labels using node_nbs as indices.
-      array_1t node_nbs_labels(extents[node_nbs.shape()[0]]);
-      for (unsigned int j = 0; j < node_nbs_labels.shape()[0]; ++j) {
+      array_1t node_nbs_labels(extents[n_nbs]);
+      for (unsigned int j = 0; j < n_nbs; ++j) {
         node_nbs_labels[j] = node_labels[node_nbs[j]];
       }
+
       c_iter begin = node_nbs_labels.begin();
       c_iter end = node_nbs_labels.end();
 
-      // Check if node has no labeled neighbours.
+      // Check if node has no labelled neighbours.
       bool is_alone = 1;
       for (c_iter it = begin; is_alone && (it != end); ++it){
         is_alone *= (*it == unlabelled);
@@ -244,8 +249,6 @@ void extended_hk_no_boost(int* node_labels, int const* const* nbs,
         // Apply the minimum label to all labelled neighbours + current node.
         node_labels[i] = min_label;
         for (int j = 0; j < m; ++j)
-//          if (node_labels[node_nbs[j]] != unlabelled)
-//            uf_union(min_label, node_labels[node_nbs[j]]);
           if (node_nbs_labels[j] != unlabelled)
             uf_union(min_label,node_nbs_labels[j]);
       }
