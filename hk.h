@@ -10,6 +10,4 @@ void extended_hoshen_kopelman(boost::multi_array<int, 1>& node_labels,
 void extended_hk_no_boost(int* node_labels, int const* const* nbs,
                           const int* occupancy, int N, int m);
 
-int hoshen_kopelman(int **matrix, int m, int n);
-
 #endif /* HK_H_ */
