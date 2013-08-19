@@ -17,7 +17,6 @@
  */
 
 #include <boost/multi_array.hpp>
-#include <boost/phoenix.hpp>
 #include <algorithm>
 #include <cassert>
 #include <new>
